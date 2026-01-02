@@ -11,7 +11,6 @@ import io
 # =============================================================================
 # CONFIGURACIÓN INICIAL
 # =============================================================================
-# CAMBIO 1: Quité "2025" del título de la pestaña del navegador
 st.set_page_config(page_title="Sistema Fiscal", page_icon="📊", layout="wide")
 
 # Estilos CSS Personalizados
@@ -77,7 +76,10 @@ def generar_pdf_en_memoria(texto, cliente, autor):
 
     # Encabezado
     c.setFont("Helvetica-Bold", 14)
-    c.drawString(200, height - 50, f"REPORTE FISCAL: {cliente}")
+    # Limpiamos un poco el nombre para que no quede tan largo en el título si tiene RFC
+    titulo_cliente = cliente[:40] + "..." if len(cliente) > 40 else cliente
+    c.drawString(200, height - 50, f"REPORTE FISCAL: {titulo_cliente}")
+    
     c.setFont("Helvetica", 10)
     c.drawString(450, height - 70, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}")
     
@@ -121,7 +123,6 @@ if not st.session_state.logged_in:
     with col2:
         st.markdown("<h2 style='text-align: center; color: #922B21;'>🔐 Acceso Web</h2>", unsafe_allow_html=True)
         
-        # LOGO EN LOGIN
         if os.path.exists("logo_smm.png"):
             st.image("logo_smm.png", width=200)
         
@@ -142,13 +143,31 @@ if not st.session_state.logged_in:
 
 # --- SIDEBAR ---
 with st.sidebar:
-    # LOGO EN SIDEBAR (Tamaño ajustado 180px)
     if os.path.exists("logo_smm.png"):
         st.image("logo_smm.png", width=180)
         
     st.write(f"**Usuario:** {st.session_state.usuario_actual}")
     st.markdown("---")
-    cliente = st.selectbox("Cliente Actual", ["CLIENTE GENERAL", "NUEVO CLIENTE..."])
+    
+    # SELECCIÓN DE CLIENTE
+    cliente_opcion = st.selectbox("Cliente Actual", ["CLIENTE GENERAL", "NUEVO CLIENTE..."])
+    
+    # LÓGICA PARA NUEVO CLIENTE (CON RFC)
+    if cliente_opcion == "NUEVO CLIENTE...":
+        cliente_nombre = st.text_input("Nombre / Razón Social:", placeholder="Ej: Empresa S.A. de C.V.")
+        cliente_rfc = st.text_input("RFC:", placeholder="XAXX010101000")
+        
+        if cliente_nombre:
+            if cliente_rfc:
+                # Si pone RFC, lo unimos al nombre: "Empresa (RFC)"
+                cliente = f"{cliente_nombre} ({cliente_rfc})"
+            else:
+                cliente = cliente_nombre
+        else:
+            cliente = "SIN NOMBRE"
+    else:
+        cliente = cliente_opcion # Usamos "CLIENTE GENERAL"
+
     mes = st.selectbox("Mes", ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'])
     regimen = st.selectbox("Régimen", ['RÉGIMEN GENERAL PM', 'RESICO PM', 'PERSONA FÍSICA'])
     
@@ -158,8 +177,12 @@ with st.sidebar:
         st.session_state.usuario_actual = ""
         st.rerun()
 
-# --- TÍTULO PRINCIPAL (CAMBIO 2: SIN AÑO) ---
+# --- TÍTULO ---
 st.markdown(f"<h1 style='color:#922B21'>SISTEMA FISCAL | {mes}</h1>", unsafe_allow_html=True)
+
+# Confirmación visual del cliente activo
+if cliente_opcion == "NUEVO CLIENTE..." and cliente_nombre:
+    st.info(f"📁 Trabajando con: **{cliente}**")
 
 # --- PESTAÑAS ---
 pestanas = st.tabs(["1. ISR / IVA", "2. Retenciones", "3. Nómina", "4. Concentrado", "5. Anual", "6. Reportes", "Configuración"])
@@ -368,5 +391,4 @@ with pestanas[6]:
     with col_cred2:
         st.markdown("### Desarrollado por:")
         st.markdown("## DR. Miguel Sánchez Morales")
-        # CAMBIO 3: Quité el 2025 de aquí también
         st.caption("Sistema Fiscal Maestro Versión Web")
